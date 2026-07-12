@@ -1,0 +1,15 @@
+{
+  "name": "Command Deck — IITM CSE Roadmap",
+  "short_name": "Command Deck",
+  "description": "Two-year JEE Advanced roadmap and brain-training system for a Top-60 AIR, IIT Madras CSE target.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#05070A",
+  "theme_color": "#0A0D12",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
