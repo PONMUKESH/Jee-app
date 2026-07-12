@@ -1,0 +1,1163 @@
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import {
+  Target, Clock, Brain, Zap, TrendingUp, CheckCircle2, Circle, ChevronDown,
+  ChevronRight, BookOpen, Rocket, AlertTriangle, Bell, Play, Pause, RotateCcw,
+  Plus, X, Flame, Activity, BarChart3, Timer, Sparkles, Eye, EyeOff, FastForward,
+  CheckCheck, XCircle, ListChecks, LayoutGrid
+} from "lucide-react";
+
+/* ============================================================================
+   THEME TOKENS
+   A "war-room / trading-terminal" palette: near-black chassis, phosphor-amber
+   primary accent (the "signal"), cool cyan secondary accent (the "logic"),
+   monospace numerals everywhere data changes in real time.
+   ============================================================================ */
+const T = {
+  bg: "#0A0D12",
+  bgElevated: "#10141C",
+  panel: "#141922",
+  panelAlt: "#1B212C",
+  border: "#232B38",
+  borderBright: "#313D4F",
+  text: "#E9ECF1",
+  textMuted: "#8A93A3",
+  textFaint: "#5A6474",
+  amber: "#F5B942",
+  amberDim: "#8A6A2E",
+  cyan: "#4FD1C5",
+  cyanDim: "#2C6E68",
+  green: "#4ADE80",
+  red: "#F0625E",
+  purple: "#A78BFA",
+};
+
+const FONT_IMPORT = `@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');`;
+
+const fontDisplay = { fontFamily: "'Space Grotesk', sans-serif" };
+const fontBody = { fontFamily: "'Inter', sans-serif" };
+const fontMono = { fontFamily: "'JetBrains Mono', monospace" };
+
+/* ============================================================================
+   DATA: TWO-YEAR CURRICULUM
+   Every chapter carries two tracks: Core Path (board/JEE Main grade fluency)
+   and Brain-Training Path (Olympiad / IChO / IMO-adjacent material that
+   forces the kind of multi-step, ambiguous-condition thinking JEE Advanced
+   and, later, competitive programming both reward).
+   ============================================================================ */
+const PHASES = [
+  {
+    id: "p1",
+    tag: "PHASE 01",
+    title: "Class 11 — Fundamentals",
+    window: "Apr 2026 – Mar 2027",
+    color: T.cyan,
+    subjects: {
+      Physics: [
+        { name: "Units, Dimensions & Measurement", core: ["NCERT Ch.1–2", "DC Pandey Mechanics Vol.1"], brain: ["Irodov §1.1 dimensional puzzles", "Fermi estimation drills"] },
+        { name: "Kinematics", core: ["NCERT Ch.3–4", "HC Verma Vol.1"], brain: ["Irodov §1.2–1.3", "Krotov relative-motion sets"] },
+        { name: "Laws of Motion", core: ["HC Verma Vol.1", "DC Pandey"], brain: ["Irodov §1.4", "Pathfinder constraint-motion pack"] },
+        { name: "Work, Energy & Power", core: ["NCERT Ch.6", "HC Verma Vol.1"], brain: ["Irodov §1.5", "Krotov energy-method problems"] },
+        { name: "Rotational Motion", core: ["NCERT Ch.7", "DC Pandey Mechanics Vol.2"], brain: ["Irodov §1.6", "Pathfinder rigid-body marathon"] },
+        { name: "Gravitation", core: ["NCERT Ch.8", "HC Verma Vol.1"], brain: ["Irodov §1.7", "Multi-body orbital problems"] },
+        { name: "Mechanical Properties & Thermodynamics", core: ["NCERT Ch.9–12"], brain: ["Irodov §2", "Krotov thermal-cycle sets"] },
+      ],
+      Chemistry: [
+        { name: "Mole Concept & Stoichiometry", core: ["NCERT Ch.1", "RC Mukherjee numericals"], brain: ["Olympiad titration-limit puzzles"] },
+        { name: "Atomic Structure", core: ["NCERT Ch.2", "JD Lee (ref.)"], brain: ["Quantum-number edge-case problems"] },
+        { name: "Chemical Bonding", core: ["NCERT Ch.4"], brain: ["MO-theory multi-molecule sets"] },
+        { name: "States of Matter", core: ["NCERT Ch.5"], brain: ["Real-gas deviation problem packs"] },
+        { name: "Thermodynamics (Chemical)", core: ["NCERT Ch.6"], brain: ["Multi-step entropy/free-energy chains"] },
+        { name: "Equilibrium", core: ["NCERT Ch.7"], brain: ["Simultaneous equilibria — Olympiad style"] },
+        { name: "Redox Reactions", core: ["NCERT Ch.8"], brain: ["Disproportionation puzzle set"] },
+      ],
+      Maths: [
+        { name: "Sets, Relations & Functions", core: ["NCERT", "Cengage Algebra"], brain: ["Black Book abstract-mapping problems"] },
+        { name: "Quadratic Equations", core: ["Cengage Algebra"], brain: ["Sameer Bansal parametric-root sets"] },
+        { name: "Sequences & Series", core: ["Cengage Algebra"], brain: ["Black Book AM-GM inequality chains"] },
+        { name: "Trigonometric Identities & Equations", core: ["Cengage Trigonometry"], brain: ["Multi-angle transformation marathons"] },
+        { name: "Permutations & Combinations", core: ["Cengage Algebra"], brain: ["Black Book combinatorics — bijection proofs"] },
+        { name: "Binomial Theorem", core: ["Cengage Algebra"], brain: ["Coefficient-extraction Olympiad sets"] },
+        { name: "Straight Lines & Conic Sections", core: ["Cengage Coordinate Geometry"], brain: ["Locus & envelope problem packs"] },
+      ],
+    },
+  },
+  {
+    id: "p2",
+    tag: "PHASE 02",
+    title: "Class 11 — Advanced Revision Layer",
+    window: "Feb 2027 – Apr 2027",
+    color: T.purple,
+    subjects: {
+      Physics: [
+        { name: "Mechanics Mastery Block", core: ["Full HC Verma re-solve, timed"], brain: ["Irodov mechanics — 100 problem sweep"] },
+        { name: "Gravitation & Thermodynamics Mastery", core: ["DC Pandey re-solve"], brain: ["Krotov mixed thermal-gravity sets"] },
+        { name: "Properties of Matter Mastery", core: ["NCERT + HCV recap"], brain: ["Pathfinder fluid-elasticity fusion problems"] },
+      ],
+      Chemistry: [
+        { name: "Physical Chemistry Foundations Mastery", core: ["Mole, atomic structure, thermo, equilibrium recap"], brain: ["Cross-chapter numerical fusion sets"] },
+        { name: "Bonding & States of Matter Mastery", core: ["NCERT recap + JD Lee"], brain: ["Structure-prediction Olympiad drills"] },
+        { name: "Redox & Basic Organic Foundations", core: ["NCERT organic basics"], brain: ["Mechanism-prediction intro sets"] },
+      ],
+      Maths: [
+        { name: "Algebra Mastery Block", core: ["Sets → Binomial, full re-solve"], brain: ["Black Book algebra — 100 problem sweep"] },
+        { name: "Trigonometry & Coordinate Geometry Mastery", core: ["Cengage re-solve, timed"], brain: ["Sameer Bansal fusion problem sets"] },
+        { name: "P&C and Probability Foundations", core: ["Cengage Probability intro"], brain: ["Combinatorics + probability crossover puzzles"] },
+      ],
+    },
+  },
+  {
+    id: "p3",
+    tag: "PHASE 03",
+    title: "Class 12 — Full Syllabus",
+    window: "Apr 2027 – Dec 2027",
+    color: T.amber,
+    subjects: {
+      Physics: [
+        { name: "Electrostatics", core: ["NCERT Ch.1–2", "HC Verma Vol.2"], brain: ["Irodov electrostatics §3.1"] },
+        { name: "Current Electricity", core: ["NCERT Ch.3", "HC Verma Vol.2"], brain: ["Irodov §3.2 circuit puzzles"] },
+        { name: "Magnetism & EMI", core: ["NCERT Ch.4–6"], brain: ["Irodov §3.3–3.4"] },
+        { name: "Optics", core: ["NCERT Ch.9–10", "HC Verma Vol.2"], brain: ["Irodov §5, Krotov wave-optics sets"] },
+        { name: "Modern Physics", core: ["NCERT Ch.11–13"], brain: ["Irodov §6, nuclear multi-step problems"] },
+        { name: "Semiconductors & Communication", core: ["NCERT Ch.14–15"], brain: ["Applied circuit-logic problems"] },
+      ],
+      Chemistry: [
+        { name: "Solid State & Solutions", core: ["NCERT Ch.1–2"], brain: ["Crystal-defect Olympiad sets"] },
+        { name: "Electrochemistry & Kinetics", core: ["NCERT Ch.3", "Ch.4"], brain: ["Multi-cell + rate-law fusion problems"] },
+        { name: "Surface Chemistry", core: ["NCERT Ch.5"], brain: ["Adsorption-isotherm problem packs"] },
+        { name: "p-Block Elements", core: ["NCERT Ch.7"], brain: ["Reaction-prediction chains"] },
+        { name: "d & f Block + Coordination Compounds", core: ["NCERT Ch.8–9"], brain: ["Isomerism & CFT Olympiad sets"] },
+        { name: "Organic: Alcohols, Aldehydes, Amines, Biomolecules", core: ["NCERT Ch.11–14"], brain: ["Named-reaction mechanism marathons"] },
+      ],
+      Maths: [
+        { name: "Relations, Functions & Inverse Trig", core: ["Cengage Calculus intro"], brain: ["Black Book functional-equation sets"] },
+        { name: "Matrices & Determinants", core: ["Cengage Algebra"], brain: ["Sameer Bansal matrix-proof problems"] },
+        { name: "Continuity, Differentiability & Applications", core: ["Cengage Calculus"], brain: ["Black Book optimization marathons"] },
+        { name: "Integrals & Applications", core: ["Cengage Calculus"], brain: ["Krotov-adjacent definite-integral puzzles"] },
+        { name: "Differential Equations, Vectors & 3D", core: ["Cengage Vectors & 3D"], brain: ["Multi-concept geometry-DE fusion sets"] },
+        { name: "Probability", core: ["Cengage Probability"], brain: ["Black Book conditional-probability chains"] },
+      ],
+    },
+  },
+  {
+    id: "p4",
+    tag: "PHASE 04",
+    title: "The Ultimate JEE Advanced Grind",
+    window: "Jan 2028 – May 2028",
+    color: T.red,
+    subjects: {
+      Physics: [
+        { name: "Full-Syllabus Integration Tests", core: ["Weekly full-length JEE Advanced mocks"], brain: ["Multi-topic fusion problems, no chapter tags"] },
+        { name: "Previous Year Advanced Papers (2013–2027)", core: ["Paper-by-paper, timed, analyzed"], brain: ["Re-attempt hardest 20% under 8-min sprint rule"] },
+        { name: "Rank-Booster Modules", core: ["Topic-wise weak-area sprints"], brain: ["Irodov/Krotov leftover problem clearance"] },
+      ],
+      Chemistry: [
+        { name: "Physical + Inorganic + Organic Integration", core: ["Cross-domain mock tests"], brain: ["Reasoning-based multi-answer problems"] },
+        { name: "Numerical-Heavy Advanced Sets", core: ["JEE Advanced numerical-value archive"], brain: ["Multi-step calculation-under-pressure drills"] },
+        { name: "Previous Year Advanced Papers (2013–2027)", core: ["Paper-by-paper, timed, analyzed"], brain: ["Error-pattern deep dive per paper"] },
+      ],
+      Maths: [
+        { name: "Multi-Topic Advanced Problem Sets", core: ["Cross-chapter mock series"], brain: ["Black Book / Sameer Bansal leftover clearance"] },
+        { name: "Coordinate + Calculus Fusion Problems", core: ["Integrated mock sections"], brain: ["Proof-style Olympiad-adjacent problems"] },
+        { name: "Previous Year Advanced Papers (2013–2027)", core: ["Paper-by-paper, timed, analyzed"], brain: ["8-minute single-question sprint re-runs"] },
+      ],
+    },
+  },
+];
+
+const SUBJECT_ORDER = ["Physics", "Chemistry", "Maths"];
+
+/* ============================================================================
+   DATA: BRAIN GYM
+   ============================================================================ */
+function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+function makeEstimationQuestion() {
+  const a = randInt(120, 980), b = randInt(12, 89);
+  const real = a * b;
+  const correct = real;
+  const spread = Math.max(200, Math.round(real * 0.18));
+  const opts = new Set([correct]);
+  while (opts.size < 4) {
+    const off = randInt(-spread, spread);
+    const candidate = correct + off;
+    if (candidate > 0 && Math.abs(candidate - correct) > spread * 0.15) opts.add(candidate);
+  }
+  const options = Array.from(opts).sort(() => Math.random() - 0.5);
+  return { type: "Estimation", prompt: `Estimate (no writing): ${a} × ${b} ≈ ?`, options, answer: correct };
+}
+
+function makePermutationQuestion() {
+  const n = randInt(5, 9), r = randInt(2, Math.min(4, n - 1));
+  const fact = (x) => (x <= 1 ? 1 : x * fact(x - 1));
+  const nPr = fact(n) / fact(n - r);
+  const nCr = nPr / fact(r);
+  const useC = Math.random() > 0.5;
+  const correct = useC ? nCr : nPr;
+  const opts = new Set([correct]);
+  while (opts.size < 4) {
+    const off = randInt(-Math.ceil(correct * 0.4) - 2, Math.ceil(correct * 0.4) + 2);
+    const c = correct + off;
+    if (c > 0 && c !== correct) opts.add(c);
+  }
+  const options = Array.from(opts).sort(() => Math.random() - 0.5);
+  return {
+    type: useC ? "Combination" : "Permutation",
+    prompt: `${useC ? "ⁿCᵣ" : "ⁿPᵣ"} for n=${n}, r=${r} = ?`,
+    options, answer: correct,
+  };
+}
+
+function makeProbabilityQuestion() {
+  const templates = [
+    () => {
+      const faces = 6, target = randInt(2, 4);
+      return { prompt: `Two fair dice rolled — P(sum = ${target === 4 ? 7 : target === 3 ? 8 : 9})?`, answer: target === 4 ? "1/6" : target === 3 ? "5/36" : "1/9", options: ["1/6", "5/36", "1/9", "1/12"] };
+    },
+    () => ({ prompt: "Draw 1 card — P(face card)?", answer: "3/13", options: ["3/13", "1/4", "1/13", "4/13"] }),
+    () => ({ prompt: "3 fair coins tossed — P(exactly 2 heads)?", answer: "3/8", options: ["3/8", "1/2", "1/4", "1/8"] }),
+    () => ({ prompt: "Bag: 4 red, 6 blue — P(red) on 1 draw?", answer: "2/5", options: ["2/5", "3/5", "1/2", "4/10"] }),
+  ];
+  const pick = templates[randInt(0, templates.length - 1)]();
+  const options = [...new Set(pick.options)].sort(() => Math.random() - 0.5);
+  return { type: "Probability", prompt: pick.prompt, options, answer: pick.answer };
+}
+
+function generateBlitzQuestion() {
+  const kind = randInt(0, 2);
+  if (kind === 0) return makeEstimationQuestion();
+  if (kind === 1) return makePermutationQuestion();
+  return makeProbabilityQuestion();
+}
+
+const DEEP_FOCUS_BANK = [
+  { id: "df1", subject: "Physics", difficulty: "5-step", prompt: "A uniform rod of length L pivoted at one end is released from horizontal. A small bead of mass m/2 can slide frictionlessly along the rod and starts at the pivot. At the instant the rod is vertical, the bead has slid to the free end under gravity alone (no friction, no other forces along the rod). Find the angular velocity of the rod at that instant, treating the rod (mass m) and bead as a coupled system with time-varying moment of inertia." },
+  { id: "df2", subject: "Chemistry", difficulty: "5-step", prompt: "A weak diprotic acid H2A (Ka1, Ka2 both unknown) is titrated with strong base. At the first equivalence point, pH = 4.5; at the second, pH = 9.0. Using only these two data points and standard amphiprotic-species approximations, set up (do not just quote) the relations needed to estimate Ka1 and Ka2, and identify which approximation is more likely to fail here." },
+  { id: "df3", subject: "Maths", difficulty: "5-step", prompt: "Let f(x) be a twice-differentiable function on ℝ with f(0) = 0, f'(0) = 1, and f''(x) + f(x) = 0 for all x replaced by a perturbed relation f''(x) + f(x) = ε·g(x) where g is bounded by 1. Bound |f(x) − sin x| for x ∈ [0, π] in terms of ε using a Gronwall-style argument." },
+  { id: "df4", subject: "Physics", difficulty: "5-step", prompt: "Two identical capacitors, initially one charged to V0 and one uncharged, are connected through an inductor L (no resistance) at t=0. Derive the charge on each capacitor as a function of time, and find the maximum current through the inductor." },
+  { id: "df5", subject: "Maths", difficulty: "5-step", prompt: "Find all positive integers (a, b, c) with a ≤ b ≤ c such that 1/a + 1/b + 1/c = 1, and prove your list is exhaustive — no lookup, derive the bounding argument on a first." },
+  { id: "df6", subject: "Chemistry", difficulty: "5-step", prompt: "A first-order reaction A → B is reversible with forward rate k1 and backward rate k2. Starting from pure A at concentration C0, derive [A](t) and identify the time at which the system reaches 90% of its equilibrium composition, in terms of k1 and k2 only." },
+];
+
+const CATEGORY_META = {
+  "Conceptual Flaw": { color: T.red, icon: Brain },
+  "Silly Calculation Error": { color: T.amber, icon: XCircle },
+  "Slow Speed": { color: T.cyan, icon: Timer },
+};
+const REVIEW_INTERVALS = [1, 3, 7, 16, 35]; // days, simple spaced-repetition ladder
+
+/* ============================================================================
+   SMALL UI PRIMITIVES
+   ============================================================================ */
+const Panel = ({ children, style, ...rest }) => (
+  <div
+    style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 14, ...style }}
+    {...rest}
+  >
+    {children}
+  </div>
+);
+
+const ProgressBar = ({ value, color = T.amber, height = 6 }) => (
+  <div style={{ width: "100%", height, background: T.panelAlt, borderRadius: 99, overflow: "hidden" }}>
+    <div style={{ width: `${Math.min(100, Math.max(0, value))}%`, height: "100%", background: color, borderRadius: 99, transition: "width .4s ease" }} />
+  </div>
+);
+
+const Pill = ({ children, color = T.textMuted, bg = "transparent", border }) => (
+  <span
+    style={{
+      display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600,
+      padding: "3px 9px", borderRadius: 99, color, background: bg,
+      border: border ? `1px solid ${border}` : `1px solid ${T.border}`, ...fontMono, letterSpacing: 0.3,
+    }}
+  >
+    {children}
+  </span>
+);
+
+const SectionLabel = ({ children }) => (
+  <div style={{ ...fontMono, fontSize: 11, letterSpacing: 1.5, color: T.textFaint, textTransform: "uppercase", marginBottom: 8 }}>
+    {children}
+  </div>
+);
+
+/* ============================================================================
+   TICKER BAR — the signature element.
+   A live, scrolling market-style ticker reinforcing the HFT / quant framing:
+   rotating key metrics instead of a static header.
+   ============================================================================ */
+function TickerBar({ daysLeft, elasticity, streak, dueCount }) {
+  const items = [
+    { label: "T-MINUS", value: `${daysLeft}D`, color: T.red },
+    { label: "ELASTICITY", value: elasticity, color: T.amber },
+    { label: "STREAK", value: `${streak}D`, color: T.green },
+    { label: "REVISIONS DUE", value: dueCount, color: T.cyan },
+    { label: "TARGET", value: "IITM CSE", color: T.purple },
+    { label: "AIR TARGET", value: "≤ 60", color: T.red },
+  ];
+  const loop = [...items, ...items];
+  return (
+    <div style={{ background: T.bgElevated, borderBottom: `1px solid ${T.border}`, overflow: "hidden", height: 30, display: "flex", alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 28, whiteSpace: "nowrap", animation: "ticker-scroll 22s linear infinite", ...fontMono, fontSize: 11 }}>
+        {loop.map((it, i) => (
+          <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 6, color: T.textMuted }}>
+            <span style={{ color: T.textFaint }}>{it.label}</span>
+            <span style={{ color: it.color, fontWeight: 700 }}>{it.value}</span>
+          </span>
+        ))}
+      </div>
+      <style>{`@keyframes ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
+    </div>
+  );
+}
+
+/* ============================================================================
+   DASHBOARD
+   ============================================================================ */
+function Countdown({ target }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const diff = Math.max(0, target.getTime() - now);
+  const d = Math.floor(diff / 86400000);
+  const h = Math.floor((diff % 86400000) / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  const Unit = ({ v, label }) => (
+    <div style={{ textAlign: "center", flex: 1 }}>
+      <div style={{ ...fontMono, fontSize: 26, fontWeight: 700, color: T.text }}>{String(v).padStart(2, "0")}</div>
+      <div style={{ ...fontMono, fontSize: 9, color: T.textFaint, letterSpacing: 1 }}>{label}</div>
+    </div>
+  );
+  return (
+    <div style={{ display: "flex", marginTop: 14 }}>
+      <Unit v={d} label="DAYS" /><Unit v={h} label="HRS" /><Unit v={m} label="MIN" /><Unit v={s} label="SEC" />
+    </div>
+  );
+}
+
+function DailyChecklist({ phase, checklist, setChecklist }) {
+  const toggle = (id) => setChecklist((c) => c.map((it) => (it.id === id ? { ...it, done: !it.done } : it)));
+  const doneCount = checklist.filter((c) => c.done).length;
+  return (
+    <Panel style={{ padding: 16, marginTop: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <SectionLabel>Today's Goal · {phase.title}</SectionLabel>
+        <span style={{ ...fontMono, fontSize: 12, color: T.textMuted }}>{doneCount}/{checklist.length}</span>
+      </div>
+      <ProgressBar value={(doneCount / checklist.length) * 100} color={phase.color} />
+      <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+        {checklist.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => toggle(item.id)}
+            style={{
+              display: "flex", alignItems: "center", gap: 10, textAlign: "left", background: "transparent",
+              border: "none", padding: "6px 2px", cursor: "pointer",
+            }}
+          >
+            {item.done ? <CheckCircle2 size={18} color={T.green} /> : <Circle size={18} color={T.textFaint} />}
+            <span style={{ ...fontBody, fontSize: 14, color: item.done ? T.textFaint : T.text, textDecoration: item.done ? "line-through" : "none" }}>
+              {item.text}
+            </span>
+          </button>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function Dashboard({ phase, elasticity, stats, checklist, setChecklist, streak, dueCount }) {
+  const target = useMemo(() => new Date("2028-05-25T09:00:00"), []);
+  return (
+    <div style={{ padding: 16 }}>
+      <Panel style={{ padding: 18, background: `linear-gradient(160deg, ${T.panel}, ${T.bgElevated})` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Target size={16} color={T.amber} />
+          <span style={{ ...fontMono, fontSize: 11, color: T.amberDim, letterSpacing: 1.5 }}>MISSION TARGET</span>
+        </div>
+        <div style={{ ...fontDisplay, fontSize: 21, fontWeight: 700, color: T.text, marginTop: 6, lineHeight: 1.25 }}>
+          IIT Madras — Computer Science Engineering
+        </div>
+        <div style={{ marginTop: 6, display: "flex", gap: 8 }}>
+          <Pill color={T.red} border={T.red}>AIR TARGET ≤ 60</Pill>
+          <Pill color={T.cyan} border={T.cyan}>JEE ADVANCED 2028</Pill>
+        </div>
+        <Countdown target={target} />
+      </Panel>
+
+      <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
+        <Panel style={{ padding: 14, flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Brain size={14} color={T.amber} />
+            <span style={{ ...fontMono, fontSize: 10, color: T.textFaint, letterSpacing: 1 }}>ELASTICITY</span>
+          </div>
+          <div style={{ ...fontMono, fontSize: 28, fontWeight: 700, color: T.amber, marginTop: 2 }}>{elasticity}</div>
+          <div style={{ ...fontBody, fontSize: 11, color: T.textFaint }}>/ 999 · brain-training index</div>
+        </Panel>
+        <Panel style={{ padding: 14, flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Flame size={14} color={T.red} />
+            <span style={{ ...fontMono, fontSize: 10, color: T.textFaint, letterSpacing: 1 }}>STREAK</span>
+          </div>
+          <div style={{ ...fontMono, fontSize: 28, fontWeight: 700, color: T.red, marginTop: 2 }}>{streak}</div>
+          <div style={{ ...fontBody, fontSize: 11, color: T.textFaint }}>consecutive focus days</div>
+        </Panel>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <SectionLabel>Current Phase</SectionLabel>
+        <Panel style={{ padding: 14 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <span style={{ ...fontDisplay, fontSize: 15, fontWeight: 700, color: phase.color }}>{phase.title}</span>
+            <span style={{ ...fontMono, fontSize: 11, color: T.textFaint }}>{phase.window}</span>
+          </div>
+          <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            {SUBJECT_ORDER.map((s) => {
+              const total = phase.subjects[s].length;
+              const done = stats.completedByPhaseSubject[phase.id]?.[s]?.size || 0;
+              return (
+                <div key={s}>
+                  <div style={{ ...fontBody, fontSize: 11, color: T.textMuted, marginBottom: 4 }}>{s}</div>
+                  <ProgressBar value={(done / total) * 100} color={phase.color} height={5} />
+                  <div style={{ ...fontMono, fontSize: 10, color: T.textFaint, marginTop: 3 }}>{done}/{total}</div>
+                </div>
+              );
+            })}
+          </div>
+        </Panel>
+      </div>
+
+      <DailyChecklist phase={phase} checklist={checklist} setChecklist={setChecklist} />
+    </div>
+  );
+}
+
+/* ============================================================================
+   ROADMAP
+   ============================================================================ */
+function ChapterRow({ chapter, phaseId, subject, done, onToggleDone, color }) {
+  const [open, setOpen] = useState(false);
+  const [track, setTrack] = useState("core");
+  return (
+    <div style={{ borderBottom: `1px solid ${T.border}` }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "12px 4px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+      >
+        <span onClick={(e) => { e.stopPropagation(); onToggleDone(phaseId, subject, chapter.name); }}>
+          {done ? <CheckCircle2 size={18} color={T.green} /> : <Circle size={18} color={T.textFaint} />}
+        </span>
+        <span style={{ ...fontBody, fontSize: 13.5, color: done ? T.textFaint : T.text, flex: 1, textDecoration: done ? "line-through" : "none" }}>
+          {chapter.name}
+        </span>
+        {open ? <ChevronDown size={16} color={T.textFaint} /> : <ChevronRight size={16} color={T.textFaint} />}
+      </button>
+      {open && (
+        <div style={{ paddingBottom: 14, paddingLeft: 28 }}>
+          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+            <button onClick={() => setTrack("core")} style={{
+              ...fontMono, fontSize: 10, padding: "5px 10px", borderRadius: 8, cursor: "pointer",
+              background: track === "core" ? color : "transparent", color: track === "core" ? T.bg : T.textMuted,
+              border: `1px solid ${track === "core" ? color : T.border}`,
+            }}>CORE PATH</button>
+            <button onClick={() => setTrack("brain")} style={{
+              ...fontMono, fontSize: 10, padding: "5px 10px", borderRadius: 8, cursor: "pointer",
+              background: track === "brain" ? T.purple : "transparent", color: track === "brain" ? T.bg : T.textMuted,
+              border: `1px solid ${track === "brain" ? T.purple : T.border}`,
+            }}>BRAIN-TRAINING PATH</button>
+          </div>
+          <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 5 }}>
+            {(track === "core" ? chapter.core : chapter.brain).map((r, i) => (
+              <li key={i} style={{ ...fontBody, fontSize: 12.5, color: T.textMuted }}>{r}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Roadmap({ stats, toggleChapterDone }) {
+  const [openPhase, setOpenPhase] = useState("p1");
+  const [subjectTab, setSubjectTab] = useState("Physics");
+
+  return (
+    <div style={{ padding: 16 }}>
+      <SectionLabel>Two-Year Curriculum &amp; Strategy Engine</SectionLabel>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {PHASES.map((phase) => {
+          const isOpen = openPhase === phase.id;
+          return (
+            <Panel key={phase.id} style={{ overflow: "hidden" }}>
+              <button
+                onClick={() => setOpenPhase(isOpen ? null : phase.id)}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: 14, background: "transparent", border: "none", cursor: "pointer" }}
+              >
+                <div style={{ width: 3, height: 30, background: phase.color, borderRadius: 2 }} />
+                <div style={{ flex: 1, textAlign: "left" }}>
+                  <div style={{ ...fontMono, fontSize: 10, color: T.textFaint, letterSpacing: 1 }}>{phase.tag} · {phase.window}</div>
+                  <div style={{ ...fontDisplay, fontSize: 14.5, fontWeight: 700, color: T.text }}>{phase.title}</div>
+                </div>
+                {isOpen ? <ChevronDown size={18} color={T.textFaint} /> : <ChevronRight size={18} color={T.textFaint} />}
+              </button>
+              {isOpen && (
+                <div style={{ padding: "0 14px 14px" }}>
+                  <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                    {SUBJECT_ORDER.map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setSubjectTab(s)}
+                        style={{
+                          ...fontMono, fontSize: 11, padding: "6px 12px", borderRadius: 8, cursor: "pointer",
+                          background: subjectTab === s ? T.panelAlt : "transparent",
+                          color: subjectTab === s ? T.text : T.textFaint,
+                          border: `1px solid ${subjectTab === s ? T.borderBright : T.border}`,
+                        }}
+                      >{s}</button>
+                    ))}
+                  </div>
+                  <div>
+                    {phase.subjects[subjectTab].map((chapter) => (
+                      <ChapterRow
+                        key={chapter.name}
+                        chapter={chapter}
+                        phaseId={phase.id}
+                        subject={subjectTab}
+                        color={phase.color}
+                        done={stats.completedByPhaseSubject[phase.id]?.[subjectTab]?.has(chapter.name)}
+                        onToggleDone={toggleChapterDone}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Panel>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================================
+   BRAIN GYM
+   ============================================================================ */
+function MentalMathBlitz({ onRoundComplete }) {
+  const [q, setQ] = useState(() => generateBlitzQuestion());
+  const [timeLeft, setTimeLeft] = useState(10);
+  const [running, setRunning] = useState(false);
+  const [feedback, setFeedback] = useState(null); // 'correct' | 'wrong' | null
+  const [session, setSession] = useState({ correct: 0, total: 0 });
+
+  useEffect(() => {
+    if (!running) return;
+    if (timeLeft <= 0) { handleAnswer(null); return; }
+    const t = setTimeout(() => setTimeLeft((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [running, timeLeft]);
+
+  const start = () => { setSession({ correct: 0, total: 0 }); nextQuestion(true); };
+
+  const nextQuestion = (fresh) => {
+    setQ(generateBlitzQuestion());
+    setTimeLeft(10);
+    setFeedback(null);
+    setRunning(true);
+  };
+
+  const handleAnswer = (opt) => {
+    if (!running) return;
+    const correct = opt === q.answer;
+    setFeedback(correct ? "correct" : "wrong");
+    setRunning(false);
+    setSession((s) => ({ correct: s.correct + (correct ? 1 : 0), total: s.total + 1 }));
+    onRoundComplete(correct);
+    setTimeout(() => nextQuestion(), 700);
+  };
+
+  return (
+    <Panel style={{ padding: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <SectionLabel>Mental Math Blitz</SectionLabel>
+        <Pill color={T.cyan} border={T.cyan}>{session.correct}/{session.total}</Pill>
+      </div>
+      <p style={{ ...fontBody, fontSize: 12, color: T.textFaint, marginTop: -4 }}>
+        Estimation, probability &amp; P&amp;C — solve mentally, no writing. 10 seconds per question.
+      </p>
+
+      {!running && session.total === 0 && feedback === null ? (
+        <button onClick={start} style={btnPrimary(T.amber)}>
+          <Play size={14} /> Start Blitz
+        </button>
+      ) : (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <Pill color={T.purple} border={T.purple}>{q.type}</Pill>
+            <span style={{ ...fontMono, fontSize: 18, fontWeight: 700, color: timeLeft <= 3 ? T.red : T.text }}>{timeLeft}s</span>
+          </div>
+          <div style={{ ...fontDisplay, fontSize: 16, color: T.text, marginBottom: 12, minHeight: 44 }}>{q.prompt}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {q.options.map((opt, i) => {
+              const isAnswer = opt === q.answer;
+              let bg = T.panelAlt, border = T.border, color = T.text;
+              if (feedback && isAnswer) { bg = "rgba(74,222,128,0.15)"; border = T.green; color = T.green; }
+              else if (feedback === "wrong" && !isAnswer) { border = T.border; }
+              return (
+                <button
+                  key={i}
+                  disabled={!running}
+                  onClick={() => handleAnswer(opt)}
+                  style={{
+                    ...fontMono, fontSize: 13, padding: "10px 8px", borderRadius: 10, cursor: running ? "pointer" : "default",
+                    background: bg, color, border: `1px solid ${border}`,
+                  }}
+                >{opt}</button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function DeepFocusSprint({ onResult }) {
+  const [current, setCurrent] = useState(null);
+  const [secondsLeft, setSecondsLeft] = useState(8 * 60);
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState(null); // 'solved' | 'missed'
+  const intervalRef = useRef(null);
+
+  useEffect(() => {
+    if (running) {
+      intervalRef.current = setInterval(() => {
+        setSecondsLeft((s) => {
+          if (s <= 1) { clearInterval(intervalRef.current); setRunning(false); setResult("missed"); onResult(current?.id, false); return 0; }
+          return s - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(intervalRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running]);
+
+  const startSprint = () => {
+    const q = DEEP_FOCUS_BANK[randInt(0, DEEP_FOCUS_BANK.length - 1)];
+    setCurrent(q);
+    setSecondsLeft(8 * 60);
+    setResult(null);
+    setRunning(true);
+  };
+
+  const finish = (solved) => {
+    clearInterval(intervalRef.current);
+    setRunning(false);
+    setResult(solved ? "solved" : "missed");
+    onResult(current?.id, solved);
+  };
+
+  const mm = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
+  const ss = String(secondsLeft % 60).padStart(2, "0");
+
+  return (
+    <Panel style={{ padding: 16, marginTop: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <SectionLabel>Deep Focus Sprint</SectionLabel>
+        <Pill color={T.red} border={T.red}>8:00 LIMIT</Pill>
+      </div>
+      <p style={{ ...fontBody, fontSize: 12, color: T.textFaint, marginTop: -4 }}>
+        One ultra-hard, 5-step JEE Advanced question. Beat the clock or log it for review.
+      </p>
+
+      {!current ? (
+        <button onClick={startSprint} style={btnPrimary(T.red)}>
+          <Rocket size={14} /> Launch Sprint
+        </button>
+      ) : (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <Pill color={T.amber} border={T.amber}>{current.subject} · {current.difficulty}</Pill>
+            <span style={{ ...fontMono, fontSize: 22, fontWeight: 700, color: secondsLeft < 60 ? T.red : T.text }}>{mm}:{ss}</span>
+          </div>
+          <div style={{ ...fontBody, fontSize: 13, lineHeight: 1.55, color: T.text, background: T.panelAlt, padding: 12, borderRadius: 10, border: `1px solid ${T.border}` }}>
+            {current.prompt}
+          </div>
+          {!result ? (
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button onClick={() => finish(true)} style={btnSecondary(T.green)}><CheckCheck size={14} /> Solved It</button>
+              <button onClick={() => finish(false)} style={btnSecondary(T.red)}><XCircle size={14} /> Couldn't Crack It</button>
+            </div>
+          ) : (
+            <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ ...fontBody, fontSize: 12.5, color: result === "solved" ? T.green : T.red }}>
+                {result === "solved" ? "Logged as solved — elasticity boosted." : "Logged for review — added to Error Log."}
+              </span>
+              <button onClick={startSprint} style={{ ...fontMono, fontSize: 11, color: T.textMuted, background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}>Next →</button>
+            </div>
+          )}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function BrainGym({ onBlitzRound, onSprintResult }) {
+  return (
+    <div style={{ padding: 16 }}>
+      <SectionLabel>Brain Gym — HFT-Grade Reflex Training</SectionLabel>
+      <MentalMathBlitz onRoundComplete={onBlitzRound} />
+      <DeepFocusSprint onResult={onSprintResult} />
+    </div>
+  );
+}
+
+const btnPrimary = (color) => ({
+  marginTop: 12, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+  ...fontMono, fontSize: 13, fontWeight: 700, padding: "12px", borderRadius: 10, cursor: "pointer",
+  background: color, color: T.bg, border: "none",
+});
+const btnSecondary = (color) => ({
+  flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+  ...fontMono, fontSize: 12, padding: "10px", borderRadius: 10, cursor: "pointer",
+  background: "transparent", color, border: `1px solid ${color}`,
+});
+
+/* ============================================================================
+   ERROR LOG
+   ============================================================================ */
+function ErrorLog({ errors, addError, markReviewed }) {
+  const [showForm, setShowForm] = useState(false);
+  const [desc, setDesc] = useState("");
+  const [chapter, setChapter] = useState("");
+  const [category, setCategory] = useState("Conceptual Flaw");
+  const [filter, setFilter] = useState("All");
+
+  const counts = { "Conceptual Flaw": 0, "Silly Calculation Error": 0, "Slow Speed": 0 };
+  errors.forEach((e) => { counts[e.category] = (counts[e.category] || 0) + 1; });
+
+  const submit = () => {
+    if (!desc.trim()) return;
+    addError({ id: `err-${Date.now()}`, desc, chapter: chapter || "Unspecified", category, createdAt: Date.now(), stage: 0, lastReview: Date.now() });
+    setDesc(""); setChapter(""); setShowForm(false);
+  };
+
+  const visible = filter === "All" ? errors : errors.filter((e) => e.category === filter);
+
+  return (
+    <div style={{ padding: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <SectionLabel>Error Log</SectionLabel>
+        <button onClick={() => setShowForm((s) => !s)} style={{ ...fontMono, fontSize: 11, color: T.bg, background: T.amber, border: "none", borderRadius: 8, padding: "6px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+          <Plus size={13} /> Log mistake
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
+        {Object.entries(CATEGORY_META).map(([cat, meta]) => (
+          <Panel key={cat} style={{ padding: 10, textAlign: "center" }}>
+            <meta.icon size={14} color={meta.color} style={{ margin: "0 auto" }} />
+            <div style={{ ...fontMono, fontSize: 18, fontWeight: 700, color: meta.color, marginTop: 4 }}>{counts[cat]}</div>
+            <div style={{ ...fontBody, fontSize: 9.5, color: T.textFaint }}>{cat}</div>
+          </Panel>
+        ))}
+      </div>
+
+      {showForm && (
+        <Panel style={{ padding: 14, marginBottom: 12 }}>
+          <input
+            placeholder="What tripped you up? (e.g. flipped inequality sign in optics range problem)"
+            value={desc} onChange={(e) => setDesc(e.target.value)}
+            style={inputStyle}
+          />
+          <input
+            placeholder="Chapter (optional)"
+            value={chapter} onChange={(e) => setChapter(e.target.value)}
+            style={{ ...inputStyle, marginTop: 8 }}
+          />
+          <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+            {Object.keys(CATEGORY_META).map((cat) => (
+              <button key={cat} onClick={() => setCategory(cat)} style={{
+                ...fontMono, fontSize: 10.5, padding: "6px 10px", borderRadius: 8, cursor: "pointer",
+                background: category === cat ? CATEGORY_META[cat].color : "transparent",
+                color: category === cat ? T.bg : T.textMuted,
+                border: `1px solid ${category === cat ? CATEGORY_META[cat].color : T.border}`,
+              }}>{cat}</button>
+            ))}
+          </div>
+          <button onClick={submit} style={btnPrimary(T.amber)}>Save entry</button>
+        </Panel>
+      )}
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+        {["All", ...Object.keys(CATEGORY_META)].map((f) => (
+          <button key={f} onClick={() => setFilter(f)} style={{
+            ...fontMono, fontSize: 10.5, padding: "5px 10px", borderRadius: 99, cursor: "pointer",
+            background: filter === f ? T.panelAlt : "transparent", color: filter === f ? T.text : T.textFaint,
+            border: `1px solid ${filter === f ? T.borderBright : T.border}`,
+          }}>{f}</button>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {visible.length === 0 && (
+          <div style={{ ...fontBody, fontSize: 12.5, color: T.textFaint, textAlign: "center", padding: 24 }}>
+            No mistakes logged yet. Every error caught here becomes a scheduled revision.
+          </div>
+        )}
+        {visible.slice().reverse().map((e) => {
+          const meta = CATEGORY_META[e.category];
+          const nextDue = e.lastReview + REVIEW_INTERVALS[Math.min(e.stage, REVIEW_INTERVALS.length - 1)] * 86400000;
+          return (
+            <Panel key={e.id} style={{ padding: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <Pill color={meta.color} border={meta.color}>{e.category}</Pill>
+                <span style={{ ...fontMono, fontSize: 10, color: T.textFaint }}>{new Date(e.createdAt).toLocaleDateString()}</span>
+              </div>
+              <div style={{ ...fontBody, fontSize: 13, color: T.text, marginTop: 6 }}>{e.desc}</div>
+              <div style={{ ...fontBody, fontSize: 11, color: T.textFaint, marginTop: 3 }}>{e.chapter}</div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+                <span style={{ ...fontMono, fontSize: 10, color: T.textFaint }}>Stage {e.stage + 1}/{REVIEW_INTERVALS.length} · next {new Date(nextDue).toLocaleDateString()}</span>
+                <button onClick={() => markReviewed(e.id)} style={{ ...fontMono, fontSize: 10, color: T.cyan, background: "transparent", border: `1px solid ${T.cyan}`, borderRadius: 8, padding: "4px 8px", cursor: "pointer" }}>
+                  Mark revised
+                </button>
+              </div>
+            </Panel>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const inputStyle = {
+  width: "100%", boxSizing: "border-box", ...fontBody, fontSize: 13, color: T.text, background: T.panelAlt,
+  border: `1px solid ${T.border}`, borderRadius: 10, padding: "10px 12px", outline: "none",
+};
+
+/* ============================================================================
+   ALERTS — Focus Sessions (distraction notifications) + Revision Queue
+   ============================================================================ */
+function useNotificationPermission() {
+  const [permission, setPermission] = useState(typeof Notification !== "undefined" ? Notification.permission : "unsupported");
+  const request = async () => {
+    if (typeof Notification === "undefined") return;
+    const p = await Notification.requestPermission();
+    setPermission(p);
+  };
+  return { permission, request };
+}
+
+function fireNotification(title, body) {
+  try {
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+      new Notification(title, { body, silent: false });
+    }
+  } catch (e) { /* Notifications unavailable in this environment — in-app banner still covers it */ }
+}
+
+function FocusSession({ onDistraction, onSessionEnd }) {
+  const [duration, setDuration] = useState(25);
+  const [active, setActive] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [distractions, setDistractions] = useState(0);
+  const { permission, request } = useNotificationPermission();
+  const intervalRef = useRef(null);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (active && document.hidden) {
+        setDistractions((d) => d + 1);
+        onDistraction();
+        fireNotification("Stay on target 🎯", "You switched away mid focus-session. Come back — the clock's still running.");
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [active, onDistraction]);
+
+  useEffect(() => {
+    if (!active) return;
+    intervalRef.current = setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s <= 1) {
+          clearInterval(intervalRef.current);
+          setActive(false);
+          fireNotification("Focus session complete ✅", `${duration} minutes logged with ${distractions} distraction(s).`);
+          onSessionEnd(distractions);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(intervalRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  const start = () => { setSecondsLeft(duration * 60); setDistractions(0); setActive(true); };
+  const stop = () => { clearInterval(intervalRef.current); setActive(false); onSessionEnd(distractions); };
+
+  const mm = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
+  const ss = String(secondsLeft % 60).padStart(2, "0");
+
+  return (
+    <Panel style={{ padding: 16 }}>
+      <SectionLabel>Focus Session &amp; Distraction Alerts</SectionLabel>
+      <p style={{ ...fontBody, fontSize: 12, color: T.textFaint, marginTop: -4, marginBottom: 10 }}>
+        While a session runs, switching tabs or apps is logged as a distraction and (if allowed) triggers a real browser notification.
+      </p>
+
+      {permission !== "granted" && permission !== "unsupported" && (
+        <button onClick={request} style={{ ...btnPrimary(T.cyan), marginTop: 0, marginBottom: 12 }}>
+          <Bell size={14} /> Enable browser notifications
+        </button>
+      )}
+
+      {!active ? (
+        <>
+          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+            {[15, 25, 45, 60].map((d) => (
+              <button key={d} onClick={() => setDuration(d)} style={{
+                ...fontMono, fontSize: 11, padding: "6px 10px", borderRadius: 8, cursor: "pointer",
+                background: duration === d ? T.amber : "transparent", color: duration === d ? T.bg : T.textMuted,
+                border: `1px solid ${duration === d ? T.amber : T.border}`,
+              }}>{d}m</button>
+            ))}
+          </div>
+          <button onClick={start} style={btnPrimary(T.amber)}><Play size={14} /> Start {duration}-min session</button>
+        </>
+      ) : (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ ...fontMono, fontSize: 26, fontWeight: 700, color: T.text }}>{mm}:{ss}</span>
+            <Pill color={distractions > 0 ? T.red : T.green} border={distractions > 0 ? T.red : T.green}>
+              {distractions} distraction{distractions !== 1 ? "s" : ""}
+            </Pill>
+          </div>
+          <button onClick={stop} style={{ ...btnSecondary(T.red), width: "100%", marginTop: 10 }}><Pause size={14} /> End session</button>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function RevisionQueue({ errors, markReviewed, simDay, advanceDay }) {
+  const nowSim = Date.now() + simDay * 86400000;
+  const items = errors.map((e) => ({
+    ...e,
+    nextDue: e.lastReview + REVIEW_INTERVALS[Math.min(e.stage, REVIEW_INTERVALS.length - 1)] * 86400000,
+  })).sort((a, b) => a.nextDue - b.nextDue);
+
+  const due = items.filter((i) => i.nextDue <= nowSim);
+  const upcoming = items.filter((i) => i.nextDue > nowSim);
+
+  return (
+    <Panel style={{ padding: 16, marginTop: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <SectionLabel>Revision Queue</SectionLabel>
+        <button onClick={advanceDay} style={{ ...fontMono, fontSize: 10, color: T.textMuted, background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, padding: "5px 9px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+          <FastForward size={12} /> Simulate +1 day
+        </button>
+      </div>
+      <p style={{ ...fontBody, fontSize: 11.5, color: T.textFaint, marginTop: -4 }}>
+        Spaced-repetition ladder ({REVIEW_INTERVALS.join("d → ")}d) built from your Error Log. Demo clock is {simDay} day(s) ahead.
+      </p>
+
+      <div style={{ marginTop: 10 }}>
+        <div style={{ ...fontMono, fontSize: 10, color: T.red, letterSpacing: 1, marginBottom: 6 }}>DUE NOW ({due.length})</div>
+        {due.length === 0 && <div style={{ ...fontBody, fontSize: 12, color: T.textFaint, marginBottom: 10 }}>Nothing due — clean slate.</div>}
+        {due.map((e) => (
+          <div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${T.border}` }}>
+            <div>
+              <div style={{ ...fontBody, fontSize: 12.5, color: T.text }}>{e.desc}</div>
+              <div style={{ ...fontMono, fontSize: 10, color: T.textFaint }}>{e.chapter} · {e.category}</div>
+            </div>
+            <button onClick={() => markReviewed(e.id)} style={{ ...fontMono, fontSize: 10, color: T.green, background: "transparent", border: `1px solid ${T.green}`, borderRadius: 8, padding: "4px 8px", cursor: "pointer" }}>Revised</button>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        <div style={{ ...fontMono, fontSize: 10, color: T.textFaint, letterSpacing: 1, marginBottom: 6 }}>UPCOMING ({upcoming.length})</div>
+        {upcoming.slice(0, 5).map((e) => (
+          <div key={e.id} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0" }}>
+            <span style={{ ...fontBody, fontSize: 12, color: T.textMuted }}>{e.desc.slice(0, 34)}{e.desc.length > 34 ? "…" : ""}</span>
+            <span style={{ ...fontMono, fontSize: 10, color: T.textFaint }}>{new Date(e.nextDue).toLocaleDateString()}</span>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function Alerts({ errors, markReviewed, onDistraction, onSessionEnd, simDay, advanceDay }) {
+  return (
+    <div style={{ padding: 16 }}>
+      <SectionLabel>Alerts &amp; Revision Engine</SectionLabel>
+      <FocusSession onDistraction={onDistraction} onSessionEnd={onSessionEnd} />
+      <RevisionQueue errors={errors} markReviewed={markReviewed} simDay={simDay} advanceDay={advanceDay} />
+    </div>
+  );
+}
+
+/* ============================================================================
+   BOTTOM NAV
+   ============================================================================ */
+function BottomNav({ tab, setTab, dueCount }) {
+  const items = [
+    { id: "dashboard", label: "Dashboard", icon: LayoutGrid },
+    { id: "roadmap", label: "Roadmap", icon: BookOpen },
+    { id: "gym", label: "Brain Gym", icon: Zap },
+    { id: "errors", label: "Error Log", icon: AlertTriangle },
+    { id: "alerts", label: "Alerts", icon: Bell },
+  ];
+  return (
+    <div style={{ display: "flex", background: T.bgElevated, borderTop: `1px solid ${T.border}`, padding: "6px 4px calc(env(safe-area-inset-bottom, 6px))" }}>
+      {items.map((it) => {
+        const active = tab === it.id;
+        return (
+          <button
+            key={it.id}
+            onClick={() => setTab(it.id)}
+            style={{
+              flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "8px 2px",
+              background: "transparent", border: "none", cursor: "pointer", position: "relative",
+            }}
+          >
+            <it.icon size={18} color={active ? T.amber : T.textFaint} />
+            {it.id === "alerts" && dueCount > 0 && (
+              <span style={{ position: "absolute", top: 4, right: "28%", width: 7, height: 7, borderRadius: 99, background: T.red }} />
+            )}
+            <span style={{ ...fontMono, fontSize: 9.5, color: active ? T.amber : T.textFaint }}>{it.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ============================================================================
+   ROOT APP
+   ============================================================================ */
+export default function App() {
+  const [tab, setTab] = useState("dashboard");
+  const [currentPhaseId, setCurrentPhaseId] = useState("p1");
+  const phase = PHASES.find((p) => p.id === currentPhaseId);
+
+  // Chapter completion: { phaseId: { subject: Set(chapterName) } }
+  const [completedByPhaseSubject, setCompletedByPhaseSubject] = useState({});
+  const toggleChapterDone = useCallback((phaseId, subject, name) => {
+    setCompletedByPhaseSubject((prev) => {
+      const next = { ...prev };
+      next[phaseId] = { ...(next[phaseId] || {}) };
+      const set = new Set(next[phaseId][subject] || []);
+      set.has(name) ? set.delete(name) : set.add(name);
+      next[phaseId][subject] = set;
+      return next;
+    });
+  }, []);
+
+  const [checklist, setChecklist] = useState([
+    { id: "c1", text: "30 Physics numericals (mixed difficulty)" },
+    { id: "c2", text: "10 Probability / P&C puzzles — Brain Gym" },
+    { id: "c3", text: "1 Deep Focus Sprint (8-min hard question)" },
+    { id: "c4", text: "Review 3 Error Log entries due today" },
+    { id: "c5", text: "1 chapter — Core Path reading" },
+  ].map((c) => ({ ...c, done: false })));
+
+  const [blitzStats, setBlitzStats] = useState({ correct: 0, total: 0 });
+  const [sprintStats, setSprintStats] = useState({ solved: 0, missed: 0 });
+  const [distractionCount, setDistractionCount] = useState(0);
+  const [streak, setStreak] = useState(4);
+
+  const [errors, setErrors] = useState([
+    { id: "seed1", desc: "Dropped a negative sign integrating over symmetric limits", chapter: "Integrals & Applications", category: "Silly Calculation Error", createdAt: Date.now() - 2 * 86400000, stage: 0, lastReview: Date.now() - 2 * 86400000 },
+    { id: "seed2", desc: "Misapplied energy conservation — ignored non-conservative friction term", chapter: "Work, Energy & Power", category: "Conceptual Flaw", createdAt: Date.now() - 5 * 86400000, stage: 1, lastReview: Date.now() - 2 * 86400000 },
+  ]);
+  const addError = (e) => setErrors((prev) => [...prev, e]);
+  const markReviewed = (id) => setErrors((prev) => prev.map((e) => e.id === id ? { ...e, stage: Math.min(e.stage + 1, REVIEW_INTERVALS.length - 1), lastReview: Date.now() } : e));
+
+  const [simDay, setSimDay] = useState(0);
+  const advanceDay = () => setSimDay((d) => d + 1);
+
+  const handleBlitzRound = (correct) => setBlitzStats((s) => ({ correct: s.correct + (correct ? 1 : 0), total: s.total + 1 }));
+  const handleSprintResult = (id, solved) => {
+    setSprintStats((s) => ({ solved: s.solved + (solved ? 1 : 0), missed: s.missed + (solved ? 0 : 1) }));
+    if (!solved) {
+      const q = DEEP_FOCUS_BANK.find((d) => d.id === id);
+      addError({ id: `sprint-${Date.now()}`, desc: `Couldn't crack an 8-min sprint: ${q ? q.prompt.slice(0, 60) + "…" : "advanced problem"}`, chapter: q?.subject || "Mixed", category: "Slow Speed", createdAt: Date.now(), stage: 0, lastReview: Date.now() });
+    }
+  };
+  const handleDistraction = () => setDistractionCount((d) => d + 1);
+  const handleSessionEnd = () => {};
+
+  const elasticity = useMemo(() => {
+    const blitzAcc = blitzStats.total ? blitzStats.correct / blitzStats.total : 0.5;
+    const base = 480;
+    const blitzBonus = Math.round(blitzAcc * 220);
+    const sprintBonus = sprintStats.solved * 35;
+    const sprintPenalty = sprintStats.missed * 8;
+    const distractionPenalty = distractionCount * 15;
+    const streakBonus = streak * 6;
+    const score = base + blitzBonus + sprintBonus + streakBonus - sprintPenalty - distractionPenalty;
+    return Math.max(0, Math.min(999, Math.round(score)));
+  }, [blitzStats, sprintStats, distractionCount, streak]);
+
+  const dueCount = useMemo(() => {
+    const nowSim = Date.now() + simDay * 86400000;
+    return errors.filter((e) => e.lastReview + REVIEW_INTERVALS[Math.min(e.stage, REVIEW_INTERVALS.length - 1)] * 86400000 <= nowSim).length;
+  }, [errors, simDay]);
+
+  const targetDate = new Date("2028-05-25T09:00:00");
+  const daysLeft = Math.max(0, Math.ceil((targetDate.getTime() - Date.now()) / 86400000));
+
+  const stats = { completedByPhaseSubject };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#05070A", display: "flex", justifyContent: "center", ...fontBody }}>
+      <style>{FONT_IMPORT}</style>
+      <div style={{ width: "100%", maxWidth: 430, minHeight: "100vh", background: T.bg, display: "flex", flexDirection: "column", position: "relative", boxShadow: "0 0 60px rgba(0,0,0,0.5)" }}>
+
+        {/* Header */}
+        <div style={{ padding: "14px 16px 0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Sparkles size={16} color={T.amber} />
+            <span style={{ ...fontDisplay, fontSize: 15, fontWeight: 700, color: T.text }}>Command Deck</span>
+            <span style={{ ...fontMono, fontSize: 9.5, color: T.textFaint, marginLeft: "auto" }}>CLASS 11 → JEE ADV 2028</span>
+          </div>
+        </div>
+
+        <TickerBar daysLeft={daysLeft} elasticity={elasticity} streak={streak} dueCount={dueCount} />
+
+        {/* Phase selector strip (drives Dashboard + Daily Checklist context) */}
+        <div style={{ display: "flex", gap: 6, padding: "10px 16px 0", overflowX: "auto" }}>
+          {PHASES.map((p) => (
+            <button key={p.id} onClick={() => setCurrentPhaseId(p.id)} style={{
+              ...fontMono, fontSize: 10, whiteSpace: "nowrap", padding: "6px 10px", borderRadius: 8, cursor: "pointer",
+              background: currentPhaseId === p.id ? p.color : "transparent",
+              color: currentPhaseId === p.id ? T.bg : T.textFaint,
+              border: `1px solid ${currentPhaseId === p.id ? p.color : T.border}`,
+            }}>{p.tag}</button>
+          ))}
+        </div>
+
+        {/* Main scroll area */}
+        <div style={{ flex: 1, overflowY: "auto", paddingBottom: 8 }}>
+          {tab === "dashboard" && (
+            <Dashboard phase={phase} elasticity={elasticity} stats={stats} checklist={checklist} setChecklist={setChecklist} streak={streak} dueCount={dueCount} />
+          )}
+          {tab === "roadmap" && <Roadmap stats={stats} toggleChapterDone={toggleChapterDone} />}
+          {tab === "gym" && <BrainGym onBlitzRound={handleBlitzRound} onSprintResult={handleSprintResult} />}
+          {tab === "errors" && <ErrorLog errors={errors} addError={addError} markReviewed={markReviewed} />}
+          {tab === "alerts" && (
+            <Alerts errors={errors} markReviewed={markReviewed} onDistraction={handleDistraction} onSessionEnd={handleSessionEnd} simDay={simDay} advanceDay={advanceDay} />
+          )}
+        </div>
+
+        <BottomNav tab={tab} setTab={setTab} dueCount={dueCount} />
+      </div>
+    </div>
+  );
+}
